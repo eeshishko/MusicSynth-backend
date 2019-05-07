@@ -1,10 +1,11 @@
-from flask import (
-    Flask
-)
+from flask import Flask, abort, request, jsonify, g, url_for
 from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
 from datetime import datetime
+from passlib.apps import custom_app_context as pwd_context
+from itsdangerous import (TimedJSONWebSignatureSerializer
+                          as Serializer, BadSignature, SignatureExpired)
 
 # Create the application instance
 app = Flask(__name__, template_folder="templates")
@@ -20,7 +21,29 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(120), index=True, unique=True)
-    password_hash = db.Column(db.String(128), nullable=True)
+    password_hash = db.Column(db.String(128))
+
+    def hash_password(self, password):
+        self.password_hash = pwd_context.hash(password)
+
+    def verify_password(self, password):
+        return pwd_context.verify(password, self.password_hash)
+
+    def generate_auth_token(self, expiration=60000000):
+        s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
+        return s.dumps({'id': self.id})
+
+    @staticmethod
+    def verify_auth_token(token):
+        s = Serializer(app.config['SECRET_KEY'])
+        try:
+            data = s.loads(token)
+        except SignatureExpired:
+            return None  # valid token, but expired
+        except BadSignature:
+            return None  # invalid token
+        user = User.query.get(data['id'])
+        return user
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -43,7 +66,63 @@ class ProcessedSong(db.Model):
 
 db.create_all()
 
-# Create a URL route in our application for "/"
+
+# LOGIN METHODS
+
+def is_token_valid(token):
+    user = User.verify_auth_token(token)
+    if not user:
+        return False
+    g.user = user
+    return True
+
+
+def json_error(error_message):
+    return jsonify({"message": error_message})
+
+# ROUTES
+@app.route('/api/users', methods=['POST'])
+def register_user():
+    username = request.json.get('username')
+    password = request.json.get('password')
+    if username is None or password is None:
+        return json_error("Неправильный логин или пароль"), 500
+
+    if User.query.filter_by(username=username).first() is not None:
+        return json_error("Пользователь с таким именем уже существует"), 500
+
+    user = User(username=username)
+    user.hash_password(password)
+    db.session.add(user)
+    db.session.commit()
+    print('user id: ', user.id)
+    token = user.generate_auth_token()
+    return jsonify({'token': token.decode('ascii')})
+
+
+@app.route('/api/login', methods=['POST'])
+def login_user():
+    username = request.json.get('username')
+    password = request.json.get('password')
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return json_error("Пользователя не существует"), 400
+
+    if not user.verify_password(password):
+        return json_error("Неверный пароль"), 400
+
+    token = user.generate_auth_token()
+    return jsonify({'token': token.decode('ascii')})
+
+
+@app.route('/api/songs', methods=['GET'])
+def get_songs():
+    if not is_token_valid(request.headers.get("Authorization")):
+        return abort(401)
+
+    return jsonify({'data': 'Hello, %s!' % g.user.username})
+
+
 @app.route('/')
 def home():
     """
@@ -53,6 +132,7 @@ def home():
     :return:        the rendered template 'home.html'
     """
     return "Hello world!"
+
 
 # If we're running in stand alone mode, run the application
 if __name__ == '__main__':
