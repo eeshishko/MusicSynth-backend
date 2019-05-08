@@ -120,18 +120,13 @@ def get_songs():
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
 
+    songs = ProcessedSong.query.filter_by(user_id=g.user.id)
     return jsonify({'data': 'Hello, %s!' % g.user.username})
 
 
 @app.route('/')
 def home():
-    """
-    This function just responds to the browser ULR
-    localhost:5000/
-
-    :return:        the rendered template 'home.html'
-    """
-    return "Hello world!"
+    return "Test"
 
 
 # If we're running in stand alone mode, run the application
