@@ -1,3 +1,4 @@
+import os
 from flask import Flask, abort, request, jsonify, g, url_for
 from config import Config
 from flask_sqlalchemy import SQLAlchemy
@@ -115,13 +116,24 @@ def login_user():
     return jsonify({'token': token.decode('ascii')})
 
 
+@app.route('/api/genres', methods=['GET'])
+def get_genres():
+    genres = []
+    for filename in os.listdir('models'):
+        path = os.path.join('models', filename)
+        if os.path.isfile(path):
+            if "DS" not in filename:
+                genres.append(filename[:-3])
+    return jsonify(genres)
+
+
 @app.route('/api/songs', methods=['GET'])
 def get_songs():
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
 
     songs = ProcessedSong.query.filter_by(user_id=g.user.id)
-    return jsonify({'data': 'Hello, %s!' % g.user.username})
+    return jsonify(songs)
 
 
 @app.route('/')
