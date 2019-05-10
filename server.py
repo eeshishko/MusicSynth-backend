@@ -162,7 +162,7 @@ def get_songs():
 def send_song_file():
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
-    
+
     song = ProcessedSong.load(id)
     if song is None:
         abort(404)
