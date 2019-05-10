@@ -86,8 +86,13 @@ def json_error(error_message):
 def register_user():
     username = request.json.get('username')
     password = request.json.get('password')
+    email = request.json.get('email')
+
     if username is None or password is None:
         return json_error("Неправильный логин или пароль"), 500
+
+    if email is None:
+        return
 
     if User.query.filter_by(username=username).first() is not None:
         return json_error("Пользователь с таким именем уже существует"), 500
@@ -127,13 +132,42 @@ def get_genres():
     return jsonify(genres)
 
 
+@app.route('/api/songs/process', methods=['POST'])
+def process_song():
+    if not is_token_valid(request.headers.get("Authorization")):
+        return abort(401)
+
+    song_name = request.json.get('name')
+    genre = request.json.get('genre')
+    user_id = g.user.id
+
+    song = ProcessedSong(name=song_name)
+    song.genre = genre
+    song.user_id = user_id
+    song.is_processed = False
+    song.is_public = False
+
+
 @app.route('/api/songs', methods=['GET'])
 def get_songs():
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
 
     songs = ProcessedSong.query.filter_by(user_id=g.user.id)
+
     return jsonify(songs)
+
+
+@app.route('/api/songs/<id>', methods=['GET'])
+def send_song_file():
+    if not is_token_valid(request.headers.get("Authorization")):
+        return abort(401)
+    
+    song = ProcessedSong.load(id)
+    if song is None:
+        abort(404)
+    url = song.file_path
+    return jsonify({"url": url})
 
 
 @app.route('/')
