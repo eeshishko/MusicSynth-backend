@@ -1,7 +1,7 @@
 import os
 from flask import abort, request, jsonify, g, flash
 from app import app, db
-from app.models import User, ProcessedSong, is_token_valid
+from app.models import User, ProcessedSong, SongRating, is_token_valid
 from ml_models.model_processing import proc
 from werkzeug.utils import secure_filename
 
@@ -123,7 +123,7 @@ def get_songs():
 
 
 @app.route('/api/songs/<song_id>', methods=['GET'])
-def send_song_file(song_id):
+def download_song(song_id):
     """
     Скачивание обработанной мелодии по id этой мелодии
     :return: TODO
@@ -138,7 +138,7 @@ def send_song_file(song_id):
     return jsonify({"url": url}) # TODO:
 
 
-@app.route('/api/songs/public', methods=['GET'])
+@app.route('/api/public/songs', methods=['GET'])
 def get_public_songs():
     """
     Возвращает список песен, которые были помечены юзерами как доступные всем. Все трэки также должны быть уже
@@ -149,12 +149,37 @@ def get_public_songs():
     return jsonify([i.serialize for i in songs.all()])
 
 
+@app.route('/api/public/songs/<song_id>', methods=['GET'])
+def download_public_song(song_id):
+    """
+    Скачивает публичную мелодию по id
+    :return: TODO
+    """
+    # TODO: реализацию возврата файла
+
+
 @app.route('/api/songs/<song_id>/rate', methods=['POST'])
 def rate_songs(song_id):
     """
     Выставляет рейтинг от авторизованного пользователя заданной песни
     :param song_id:
     """
+    if not is_token_valid(request.headers.get("Authorization")):
+        return abort(401)
+    if not request.args.get("score"):
+        return json_error("Рейтинг не задан")
+
+    song_rating = SongRating.query.filter_by(song_id=song_id, user_id=g.user.id).first()
+
+    if song_rating is None:
+        song_rating = SongRating(song_id=song_id, user_id=g.user.id, rating=request.args.get("score"))
+    else:
+        song_rating.rating = request.args.get("score")
+
+    db.session.add(song_rating)
+    db.session.commit()
+
+    return jsonify({}), 200
 
 
 @app.route('/api/songs/<song_id>/makePublic', methods=['POST'])
