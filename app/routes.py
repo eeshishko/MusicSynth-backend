@@ -2,6 +2,7 @@ import os
 from flask import abort, request, jsonify, g
 from app import app, db
 from app.models import User, ProcessedSong, is_token_valid
+from ml_models.model_processing import proc
 
 
 def json_error(error_message):
