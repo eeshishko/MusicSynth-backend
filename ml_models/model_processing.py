@@ -175,7 +175,7 @@ def proc(midi):
         notes.extend(get_msg(file))
 
     print("Загрузка ngram, для поиска похожих нот...")
-    G = joblib.load("encoders/ngram_classic_main2_5.sav")
+    G = joblib.load("./ml_models/encoders/ngram_classic_main2_5.sav")
     for i in range(len(notes)):
         print(notes[i], G.find(notes[i]))
         notes[i] = G.find(notes[i])
@@ -183,7 +183,7 @@ def proc(midi):
     print("Берем из словаря коды для каждой ноты...")
     encoder = LabelBinarizer()
     encoder.fit(notes)
-    encoder = joblib.load("encoders/LabelBinarizer_classic_main2_5.sav")
+    encoder = joblib.load("./ml_models/encoders/LabelBinarizer_classic_main2_5.sav")
     data = encoder.transform(notes)
 
     print("Создаем датасет...")
@@ -191,7 +191,7 @@ def proc(midi):
     trainX, trainY = create_dataset(data, look_back)
 
     print('Загружаем сеть...')
-    model = load_model("models/Classic.h5")
+    model = load_model("./ml_models/models/Classic.h5")
 
     print("Генерируем...")
     Y = extended_this(model=model, trainX=trainX, trainY=trainY, look_back=look_back)

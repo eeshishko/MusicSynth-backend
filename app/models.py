@@ -50,6 +50,22 @@ class User(db.Model):
     def __repr__(self):
         return '<User {}>'.format(self.username)
 
+    @property
+    def serialize(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email
+        }
+
+
+class SongRating(db.Model):
+    __tablename__ = 'song_rating'
+    id = db.Column(db.Integer, primary_key=True)
+    song_id = db.Column(db.Integer)
+    user_id = db.Column(db.Integer)
+    rating = db.Column(db.Integer, nullable=False)
+
 
 class ProcessedSong(db.Model):
     __tablename__ = 'processed_songs'
@@ -62,5 +78,29 @@ class ProcessedSong(db.Model):
     genre = db.Column(db.String(64))
     is_public = db.Column(db.Boolean)
     is_processed = db.Column(db.Boolean)
-    file_path = db.Column(db.String(256), unique=True)
-    external_id = db.Column(db.Integer, unique=True)
+    file_path = db.Column(db.String(256), nullable=True, unique=True)
+    external_id = db.Column(db.Integer, nullable=True, unique=True)
+
+    @property
+    def average_rating(self):
+        if SongRating.query.filter_by(song_id=self.id).first() is None:
+            return None
+
+        song_ratings = SongRating.query.filter_by(song_id=self.id).all()
+        int_array = [i.rating for i in song_ratings]
+        return sum(int_array) / float(len(int_array))
+
+    @property
+    def serialize(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'create_date': self.create_date,
+            'rating': self.average_rating,
+            'genre': self.genre,
+            'is_public': self.is_public,
+            'is_processed': self.is_processed,
+            'user': self.user.serialize,
+            'url': self.file_path
+        }
+
