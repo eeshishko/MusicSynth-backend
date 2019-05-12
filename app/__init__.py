@@ -6,7 +6,6 @@ from celery import Celery
 
 
 def make_celery(flask_app):
-    print("CELERY_URL: ", flask_app.config['CELERY_RESULT_BACKEND'])
     celery = Celery(
         app.import_name,
         backend=flask_app.config['CELERY_RESULT_BACKEND'],
