@@ -8,3 +8,5 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = 'myverysecretlooooooooooongkey'
     TEMP_UPLOAD_URL = './temp'
+    CELERY_BROKER_URL = 'redis://localhost:6379',
+    CELERY_RESULT_BACKEND = 'redis://localhost:6379'

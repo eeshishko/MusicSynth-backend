@@ -1,9 +1,10 @@
 import os
 from flask import abort, request, jsonify, g, flash
-from app import app, db
+from app import app, db, celery
 from app.models import User, ProcessedSong, SongRating, is_token_valid
 from ml_models.model_processing import proc
 from werkzeug.utils import secure_filename
+import time
 
 ALLOWED_SONG_EXTENSIONS = {'mid'}
 
@@ -15,6 +16,12 @@ def json_error(error_message):
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_SONG_EXTENSIONS
+
+
+@celery.task()
+def process_midi_file(filename):
+    time.sleep(10)
+    print("COMPLETED")
 
 
 # ROUTES
@@ -104,6 +111,7 @@ def process_song():
 
     # TODO: поставить эту таску в background
     # proc(temp_dir + '/' + file.filename)
+    process_midi_file.delay(file.filename)
 
     return jsonify(song.serialize)
 
