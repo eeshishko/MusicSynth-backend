@@ -41,6 +41,7 @@ def register_user():
         return json_error("Пользователь с таким именем уже существует"), 500
 
     user = User(username=username)
+    user.email = email
     user.hash_password(password)
     db.session.add(user)
     db.session.commit()
