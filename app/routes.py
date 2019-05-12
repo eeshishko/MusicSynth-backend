@@ -80,26 +80,29 @@ def process_song():
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
 
+    genre = request.args.get("genre")
+    if not genre:
+        return json_error("Необходимо указать жанр"), 500
+
     if 'song' not in request.files:
         flash('No file part')
         return json_error("Не удалось загрузить файл на сервер"), 500
 
     file = request.files['song']
     temp_dir = app.config['TEMP_UPLOAD_URL']
+    if os.path.isdir(temp_dir) is False:
+        os.mkdir(temp_dir)
 
     if file.filename == '':
         flash('No selected file')
         return json_error("Имя файла не должно быть пустым"), 500
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(temp_dir, filename))
-
-    genre = request.args.get("genre")
-    if not genre:
-        return json_error("Необходимо указать жанр"), 500
 
     if ProcessedSong.query.filter_by(name=file.filename, user_id=g.user.id).first() is not None:
         return json_error("Мелодия с таким названием уже имеется у вас библиотеке"), 500
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(temp_dir, filename))
 
     song = ProcessedSong(name=file.filename)
     song.genre = genre
@@ -109,7 +112,6 @@ def process_song():
     db.session.add(song)
     db.session.commit()
 
-    # TODO: поставить эту таску в background
     # proc(temp_dir + '/' + file.filename)
     process_midi_file.delay(file.filename)
 
