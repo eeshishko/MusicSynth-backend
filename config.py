@@ -8,5 +8,6 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = 'myverysecretlooooooooooongkey'
     TEMP_UPLOAD_URL = './temp'
+    S3_BUCKET_NAME = os.environ.get('S3_BUCKET', 'music-synth-backend')
     CELERY_BROKER_URL = os.environ.get('REDISCLOUD_URL') or 'redis://localhost:6379'
     CELERY_RESULT_BACKEND = os.environ.get('REDISCLOUD_URL') or 'redis://localhost:6379'

@@ -1,6 +1,6 @@
 import os
 from flask import abort, request, jsonify, g, flash
-from app import app, db, celery
+from app import app, db, celery, s3_resource
 from app.models import User, ProcessedSong, SongRating, is_token_valid
 from ml_models.model_processing import proc
 from werkzeug.utils import secure_filename
@@ -22,6 +22,7 @@ def allowed_file(filename):
 def process_midi_file(filename):
     time.sleep(10)
     print("COMPLETED")
+    # TODO: Update DB row, saving proccessed file in aws service
 
 
 # ROUTES
@@ -113,8 +114,11 @@ def process_song():
     db.session.add(song)
     db.session.commit()
 
-    # proc(temp_dir + '/' + file.filename)
     process_midi_file.delay(file.filename)
+
+    # TODO: temprorary
+    s3_resource.Object(app.config['S3_BUCKET_NAME'], str(g.user.id) + "/" + file.filename)\
+        .upload_file(Filename=os.path.join(temp_dir, file.filename))
 
     return jsonify(song.serialize)
 
@@ -146,7 +150,7 @@ def download_song(song_id):
     if song is None:
         abort(404)
     url = song.file_path
-    return jsonify({"url": url}) # TODO:
+    return jsonify({"url": url})  # TODO: Вовзращать файл
 
 
 @app.route('/api/public/songs', methods=['GET'])

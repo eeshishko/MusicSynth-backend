@@ -1,3 +1,4 @@
+boto3
 absl-py==0.7.1
 alembic==1.0.10
 amqp==2.4.2

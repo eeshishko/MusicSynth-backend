@@ -3,6 +3,7 @@ from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from celery import Celery
+import boto3
 
 
 def make_celery(flask_app):
@@ -22,11 +23,12 @@ def make_celery(flask_app):
     return celery
 
 
-# Create the application instance
 app = Flask(__name__)
 app.config.from_object(Config)
 
 celery = make_celery(app)
+
+s3_resource = boto3.resource('s3')
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
