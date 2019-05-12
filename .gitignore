@@ -1,2 +1,4 @@
 temp/
 app.db
+__pycache__/
+*.py[cod]
