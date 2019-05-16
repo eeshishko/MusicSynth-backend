@@ -161,6 +161,8 @@ def get_public_songs():
     обработаны.
     :return: Array<ProcessedSong>
     """
+    if not is_token_valid(request.headers.get("Authorization")):
+        return abort(401)
     songs = ProcessedSong.query.filter_by(is_public=True, is_processed=False)
     return jsonify([i.serialize for i in songs.all()])
 
@@ -195,7 +197,7 @@ def rate_songs(song_id):
     db.session.add(song_rating)
     db.session.commit()
 
-    return jsonify({}), 200
+    return jsonify(song_rating.serialize), 200
 
 
 @app.route('/api/songs/<song_id>/makePublic', methods=['POST'])

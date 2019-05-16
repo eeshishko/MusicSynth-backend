@@ -211,7 +211,7 @@ def proc(midi):
 
     sequence_length = 100
     midi_name = midi.split("/")
-    create_midi(new_notes, midi_name[0] + "/proc_"+midi_name[1])
+    create_midi(new_notes, "proccessedSong.mid")
     print("Created: " + midi_name[0] + "proc_files/proc_"+midi_name[1])
 
 
