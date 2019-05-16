@@ -12,8 +12,10 @@ from sqlalchemy.orm import backref
 class simple_utc(tzinfo):
     def tzname(self,**kwargs):
         return "UTC"
+
     def utcoffset(self, dt):
         return timedelta(0)
+
 
 def is_token_valid(token):
     user = User.verify_auth_token(token)
@@ -88,6 +90,13 @@ class ProcessedSong(db.Model):
     external_id = db.Column(db.Integer, nullable=True, unique=True)
 
     @property
+    def user_rating(self):
+        user_rate = SongRating.query.filter_by(song_id=self.id, user_id=g.user.id).first()
+        if user_rate is None:
+            return None
+        return user_rate.rating
+
+    @property
     def average_rating(self):
         if SongRating.query.filter_by(song_id=self.id).first() is None:
             return None
@@ -103,6 +112,7 @@ class ProcessedSong(db.Model):
             'name': self.name,
             'create_date': self.create_date.replace(tzinfo=simple_utc()).isoformat(),
             'rating': self.average_rating,
+            'user_rating': self.user_rating,
             'genre': self.genre,
             'is_public': self.is_public,
             'is_processed': self.is_processed,
