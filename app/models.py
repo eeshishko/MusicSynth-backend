@@ -1,6 +1,6 @@
 from app import app, db
 from flask import g
-from datetime import datetime
+from datetime import datetime, tzinfo, timedelta
 from passlib.apps import custom_app_context as pwd_context
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
@@ -8,6 +8,12 @@ from sqlalchemy.orm import backref
 
 
 # Helpers methods
+
+class simple_utc(tzinfo):
+    def tzname(self,**kwargs):
+        return "UTC"
+    def utcoffset(self, dt):
+        return timedelta(0)
 
 def is_token_valid(token):
     user = User.verify_auth_token(token)
@@ -71,7 +77,7 @@ class ProcessedSong(db.Model):
     __tablename__ = 'processed_songs'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), index=True, unique=True)
-    create_date = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    create_date = db.Column(db.DateTime, index=True, default=datetime.now())
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     user = db.relationship("User", backref=backref('user', uselist=False))
     rating = db.Column(db.Float, nullable=True)
@@ -95,7 +101,7 @@ class ProcessedSong(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'create_date': self.create_date,
+            'create_date': self.create_date.replace(tzinfo=simple_utc()).isoformat(),
             'rating': self.average_rating,
             'genre': self.genre,
             'is_public': self.is_public,

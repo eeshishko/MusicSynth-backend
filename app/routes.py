@@ -69,8 +69,8 @@ def login_user():
 @app.route('/api/genres', methods=['GET'])
 def get_genres():
     genres = []
-    for filename in os.listdir('ml_models'):
-        path = os.path.join('ml_models', filename)
+    for filename in os.listdir('ml_models/models'):
+        path = os.path.join('ml_models/models', filename)
         if os.path.isfile(path):
             if "DS" not in filename:
                 genres.append(filename[:-3])
@@ -99,7 +99,8 @@ def process_song():
         flash('No selected file')
         return json_error("Имя файла не должно быть пустым"), 500
 
-    if ProcessedSong.query.filter_by(name=file.filename, user_id=g.user.id).first() is not None:
+    existing_song = ProcessedSong.query.filter_by(name=file.filename, user_id=g.user.id).first()
+    if existing_song:
         return json_error("Мелодия с таким названием уже имеется у вас библиотеке"), 500
 
     if file and allowed_file(file.filename):
@@ -160,7 +161,7 @@ def get_public_songs():
     обработаны.
     :return: Array<ProcessedSong>
     """
-    songs = ProcessedSong.query.filter_by(is_public=True, is_processed=True)
+    songs = ProcessedSong.query.filter_by(is_public=True, is_processed=False)
     return jsonify([i.serialize for i in songs.all()])
 
 
@@ -212,7 +213,7 @@ def make_song_public(song_id):
     song.is_public = True
     db.session.add(song)
     db.session.commit()
-    return jsonify({}), 200
+    return jsonify(song.serialize), 200
 
 
 @app.route('/')
