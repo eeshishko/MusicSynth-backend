@@ -66,7 +66,6 @@ def create_dataset(dataset, look_back=1):
     return np.array(dataX), np.array(dataY)
 
 
-
 def create_midi(prediction_output, name):
     output_notes = []
     offset = 0

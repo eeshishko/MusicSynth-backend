@@ -1,9 +1,10 @@
 import os
-from flask import abort, request, jsonify, g, flash
+from flask import abort, request, jsonify, g, flash, send_file
 from app import app, db, celery, s3_resource
 from app.models import User, ProcessedSong, SongRating, is_token_valid
 from ml_models.model_processing import proc
 from werkzeug.utils import secure_filename
+import shutil
 import time
 
 ALLOWED_SONG_EXTENSIONS = {'mid'}
@@ -121,6 +122,8 @@ def process_song():
     s3_resource.Object(app.config['S3_BUCKET_NAME'], str(g.user.id) + "/" + file.filename)\
         .upload_file(Filename=os.path.join(temp_dir, file.filename))
 
+    shutil.rmtree(temp_dir) # TODO: remove only user's file
+
     return jsonify(song.serialize)
 
 
@@ -138,20 +141,36 @@ def get_songs():
     return jsonify([i.serialize for i in songs.all()])
 
 
-@app.route('/api/songs/<song_id>', methods=['GET'])
+@app.route('/api/songs/<song_id>', methods=['GET', 'DELETE'])
 def download_song(song_id):
     """
     Скачивание обработанной мелодии по id этой мелодии
-    :return: TODO
+    :return: file from amazon
     """
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
 
-    song = ProcessedSong.load(song_id)
+    song = ProcessedSong.query.filter_by(id=song_id).first()
     if song is None:
-        abort(404)
-    url = song.file_path
-    return jsonify({"url": url})  # TODO: Вовзращать файл
+        return json_error("Мелодия с таким идентификатором не найдена")
+
+    temp_dir = app.config['TEMP_UPLOAD_URL']
+    if os.path.isdir(temp_dir) is False:
+        os.mkdir(temp_dir)
+
+    temp_file_path = f'{temp_dir}/{song.name}'
+
+    s3_file_path = str(g.user.id) + "/" + song.name
+    if request.method == 'GET':
+        s3_resource.Object(app.config['S3_BUCKET_NAME'], s3_file_path)\
+            .download_file(temp_file_path)
+        return send_file(os.path.abspath(temp_file_path), as_attachment=True)
+
+    if request.method == 'DELETE':
+        s3_resource.Object(app.config['S3_BUCKET_NAME'], s3_file_path).delete()
+        ProcessedSong.query.filter_by(id=song_id).delete()
+        db.session.commit()
+        return jsonify({}), 200
 
 
 @app.route('/api/public/songs', methods=['GET'])
@@ -197,7 +216,9 @@ def rate_songs(song_id):
     db.session.add(song_rating)
     db.session.commit()
 
-    return jsonify(song_rating.serialize), 200
+    song = ProcessedSong.query.filter_by(id=song_id).first()
+
+    return jsonify(song.serialize), 200
 
 
 @app.route('/api/songs/<song_id>/makePublic', methods=['POST'])
