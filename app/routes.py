@@ -1,7 +1,7 @@
 import os
 from flask import abort, request, jsonify, g, flash, send_file
 from app import app, db, celery, s3_resource
-from app.models import User, ProcessedSong, SongRating, is_token_valid
+from app.models import User, Song, SongRating, SynthInfo, is_token_valid
 from ml_models.model_processing import proc
 from werkzeug.utils import secure_filename
 import shutil
@@ -22,6 +22,9 @@ def allowed_file(filename):
 @celery.task()
 def process_midi_file(filename):
     time.sleep(10)
+    # s3_resource.Object(app.config['S3_BUCKET_NAME'], str(g.user.id) + "/" + file.filename) \
+    #     .upload_file(Filename=os.path.join(temp_dir, file.filename))
+    # shutil.rmtree(temp_dir)  # TODO: remove only user's file_path
     print("COMPLETED")
     # TODO: Update DB row, saving proccessed file in aws service
 
@@ -78,8 +81,54 @@ def get_genres():
     return jsonify(genres)
 
 
+@app.route('/api/songs/upload', methods=['POST'])
+def upload_song():
+    """
+    Загружает песню на сервер, в базу данных и сохраняет файл на AWS
+    :return:
+    """
+    if not is_token_valid(request.headers.get("Authorization")):
+        return abort(401)
+
+    if 'song' not in request.files:
+        flash('No file part')
+        return json_error("Не удалось загрузить файл на сервер"), 500
+
+    temp_dir = app.config['TEMP_UPLOAD_URL']
+    if os.path.isdir(temp_dir) is False:
+        os.mkdir(temp_dir)
+
+    file = request.files['song']
+    if file.filename == '':
+        flash('No selected file')
+        return json_error("Имя файла не должно быть пустым"), 500
+
+    existing_song = Song.query.filter_by(name=file.filename, user_id=g.user.id).first()
+    if existing_song:
+        return json_error("Мелодия с таким названием уже имеется у вас библиотеке"), 500
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(temp_dir, filename))
+
+    file_path = str(g.user.id) + "/" + file.filename
+
+    s3_resource.Object(app.config['S3_BUCKET_NAME'], file_path) \
+        .upload_file(Filename=os.path.join(temp_dir, file.filename))
+
+    song = Song(name=file.filename)
+    song.user_id = g.user.id
+    db.session.add(song)
+    db.session.commit()
+    return jsonify(song.serialize)
+
+
 @app.route('/api/songs/process', methods=['POST'])
 def process_song():
+    """
+    Загружает песню на сервер и отправляет ее на обработку
+    :return:
+    """
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
 
@@ -91,16 +140,16 @@ def process_song():
         flash('No file part')
         return json_error("Не удалось загрузить файл на сервер"), 500
 
-    file = request.files['song']
     temp_dir = app.config['TEMP_UPLOAD_URL']
     if os.path.isdir(temp_dir) is False:
         os.mkdir(temp_dir)
 
+    file = request.files['song']
     if file.filename == '':
         flash('No selected file')
         return json_error("Имя файла не должно быть пустым"), 500
 
-    existing_song = ProcessedSong.query.filter_by(name=file.filename, user_id=g.user.id).first()
+    existing_song = Song.query.filter_by(name=file.filename, user_id=g.user.id).first()
     if existing_song:
         return json_error("Мелодия с таким названием уже имеется у вас библиотеке"), 500
 
@@ -108,21 +157,23 @@ def process_song():
         filename = secure_filename(file.filename)
         file.save(os.path.join(temp_dir, filename))
 
-    song = ProcessedSong(name=file.filename)
-    song.genre = genre
+    song = Song(name=file.filename)
     song.user_id = g.user.id
-    song.is_processed = False
-    song.is_public = False
     db.session.add(song)
     db.session.commit()
 
+    synth_info = SynthInfo(song_id=song.id)
+    synth_info.raw_song_id = request.args.get("raw_song_id")
+    synth_info.genre = genre
+    synth_info.processing_complete = False
+    db.session.add(synth_info)
+    db.session.commit()
+
+    song.synth_info_id = synth_info.id
+
+    db.session.commit()
+
     process_midi_file.delay(file.filename)
-
-    # TODO: temprorary
-    s3_resource.Object(app.config['S3_BUCKET_NAME'], str(g.user.id) + "/" + file.filename)\
-        .upload_file(Filename=os.path.join(temp_dir, file.filename))
-
-    shutil.rmtree(temp_dir) # TODO: remove only user's file
 
     return jsonify(song.serialize)
 
@@ -131,12 +182,12 @@ def process_song():
 def get_songs():
     """
         Возвращает список песен под авторизованным юзером
-        :return: Array<ProcessedSong>
-        """
+        :return: Array<Song>
+    """
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
 
-    songs = ProcessedSong.query.filter_by(user_id=g.user.id)
+    songs = Song.query.filter_by(user_id=g.user.id)
 
     return jsonify([i.serialize for i in songs.all()])
 
@@ -144,13 +195,13 @@ def get_songs():
 @app.route('/api/songs/<song_id>', methods=['GET', 'DELETE'])
 def download_song(song_id):
     """
-    Скачивание обработанной мелодии по id этой мелодии
+    Скачивание мелодии по id этой мелодии
     :return: file from amazon
     """
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
 
-    song = ProcessedSong.query.filter_by(id=song_id).first()
+    song = Song.query.filter_by(id=song_id).first()
     if song is None:
         return json_error("Мелодия с таким идентификатором не найдена")
 
@@ -162,13 +213,13 @@ def download_song(song_id):
 
     s3_file_path = str(g.user.id) + "/" + song.name
     if request.method == 'GET':
-        s3_resource.Object(app.config['S3_BUCKET_NAME'], s3_file_path)\
+        result = s3_resource.Object(app.config['S3_BUCKET_NAME'], s3_file_path)\
             .download_file(temp_file_path)
         return send_file(os.path.abspath(temp_file_path), as_attachment=True)
 
     if request.method == 'DELETE':
         s3_resource.Object(app.config['S3_BUCKET_NAME'], s3_file_path).delete()
-        ProcessedSong.query.filter_by(id=song_id).delete()
+        Song.query.filter_by(id=song_id).delete()
         db.session.commit()
         return jsonify({}), 200
 
@@ -176,23 +227,13 @@ def download_song(song_id):
 @app.route('/api/public/songs', methods=['GET'])
 def get_public_songs():
     """
-    Возвращает список песен, которые были помечены юзерами как доступные всем. Все трэки также должны быть уже
-    обработаны.
-    :return: Array<ProcessedSong>
+    Возвращает список песен, которые были помечены юзерами как доступные всем
+    :return: Array<Song>
     """
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
-    songs = ProcessedSong.query.filter_by(is_public=True, is_processed=False)
+    songs = Song.query.filter_by(is_public=True, is_processed=False)
     return jsonify([i.serialize for i in songs.all()])
-
-
-@app.route('/api/public/songs/<song_id>', methods=['GET'])
-def download_public_song(song_id):
-    """
-    Скачивает публичную мелодию по id
-    :return: TODO
-    """
-    # TODO: реализацию возврата файла
 
 
 @app.route('/api/songs/<song_id>/rate', methods=['POST'])
@@ -216,7 +257,7 @@ def rate_songs(song_id):
     db.session.add(song_rating)
     db.session.commit()
 
-    song = ProcessedSong.query.filter_by(id=song_id).first()
+    song = Song.query.filter_by(id=song_id).first()
 
     return jsonify(song.serialize), 200
 
@@ -229,7 +270,7 @@ def make_song_public(song_id):
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
 
-    song = ProcessedSong.query.filter_by(id=song_id, user_id=g.user.id).first()
+    song = Song.query.filter_by(id=song_id, user_id=g.user.id).first()
     if song is None:
         return json_error("Такой песни не существует"), 500
 

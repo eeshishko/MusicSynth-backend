@@ -31,6 +31,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(120), index=True, unique=True)
+    create_date = db.Column(db.DateTime, index=True, default=datetime.now())
     password_hash = db.Column(db.String(128))
 
     def hash_password(self, password):
@@ -49,9 +50,9 @@ class User(db.Model):
         try:
             data = s.loads(token)
         except SignatureExpired:
-            return None  # valid token, but expired
+            return None
         except BadSignature:
-            return None  # invalid token
+            return None
         user = User.query.get(data['id'])
         return user
 
@@ -75,19 +76,35 @@ class SongRating(db.Model):
     rating = db.Column(db.Integer, nullable=False)
 
 
-class ProcessedSong(db.Model):
-    __tablename__ = 'processed_songs'
+class SynthInfo(db.Model):
+    __tablename__ = 'synth_info'
+    id = db.Column(db.Integer, primary_key=True)
+    raw_song_id = db.Column(db.Integer)
+    song_id = db.Column(db.Integer)
+    processing_complete = db.Column(db.Boolean, default=False)
+    genre = db.Column(db.String(64))
+
+    @property
+    def serialize(self):
+        return {
+            'id': self.id,
+            'song_id': self.song_id,
+            'raw_song_id': self.raw_song_id,
+            'genre': self.genre,
+            'is_processed': self.processing_complete
+        }
+
+
+class Song(db.Model):
+    __tablename__ = 'song'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), index=True, unique=True)
     create_date = db.Column(db.DateTime, index=True, default=datetime.now())
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     user = db.relationship("User", backref=backref('user', uselist=False))
-    rating = db.Column(db.Float, nullable=True)
-    genre = db.Column(db.String(64))
-    is_public = db.Column(db.Boolean)
-    is_processed = db.Column(db.Boolean)
-    file_path = db.Column(db.String(256), nullable=True, unique=True)
-    external_id = db.Column(db.Integer, nullable=True, unique=True)
+    is_public = db.Column(db.Boolean, default=False)
+    synth_info_id = db.Column(db.Integer, db.ForeignKey('synth_info.id'), nullable=True)
+    synth_info = db.relationship("SynthInfo", backref=backref('synth_info', uselist=False))
 
     @property
     def user_rating(self):
@@ -113,10 +130,8 @@ class ProcessedSong(db.Model):
             'create_date': self.create_date.replace(tzinfo=simple_utc()).isoformat(),
             'rating': self.average_rating,
             'user_rating': self.user_rating,
-            'genre': self.genre,
             'is_public': self.is_public,
-            'is_processed': self.is_processed,
             'user': self.user.serialize,
-            'url': self.file_path
+            'synth_info': None if self.synth_info is None else self.synth_info.serialize
         }
 
