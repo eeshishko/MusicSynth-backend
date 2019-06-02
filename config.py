@@ -10,4 +10,5 @@ class Config(object):
     S3_TEMP_DIR_NAME = 'temp'
     S3_BUCKET_NAME = os.environ.get('S3_BUCKET', 'music-synth-backend')
     CELERY_BROKER_URL = os.environ.get('REDISCLOUD_URL') or 'redis://localhost:6379'
+    CELERYD_MAX_TASKS_PER_CHILD = 1
     CELERY_RESULT_BACKEND = os.environ.get('REDISCLOUD_URL') or 'redis://localhost:6379'
