@@ -180,7 +180,7 @@ def process_song():
     db.session.commit()
 
     print("Before delay dir:")
-    print(os.listdir('.'))
+    print(os.path.abspath('.'))
     process_midi_file.delay(file.filename, genre, synth_info.id, g.user.id)
     return jsonify(song.serialize)
 
