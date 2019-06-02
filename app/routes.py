@@ -22,19 +22,33 @@ def allowed_file(filename):
 @celery.task()
 def process_midi_file(filename, genre, synth_info_id, user_id):
     with app.app_context():
+        # Downloading file from S3 temp dir
         temp_dir = app.config['TEMP_UPLOAD_URL']
-        file_path = f'{temp_dir}/{filename}'
-        print("Abs path" + os.path.abspath('.'))
-        # processed_file = proc(file_path, genre)
-        processed_file = filename
-        synth_info = SynthInfo.query.filter_by(id=synth_info_id).first()
-        print(synth_info)
+        if os.path.isdir(temp_dir) is False:
+            os.mkdir(temp_dir)
+        temp_file_path = f'{temp_dir}/{filename}'
+
+        temp_bucket_dir = app.config['S3_TEMP_DIR_NAME']
+        s3_file_path = f'{temp_bucket_dir}/{filename}'
+
+        s3_resource.Object(app.config['S3_BUCKET_NAME'], s3_file_path) \
+            .download_file(temp_file_path)
+        s3_resource.Object(app.config['S3_BUCKET_NAME'], s3_file_path).delete()
+
+        # Start processing file
+        processed_file = proc(temp_file_path, genre)
+
+        # Upload on S3 processed file
         s3_resource.Object(app.config['S3_BUCKET_NAME'], str(user_id) + "/" + filename) \
             .upload_file(Filename=processed_file)
+
+        # Saving info in DB
+        synth_info = SynthInfo.query.filter_by(id=synth_info_id).first()
         synth_info.processing_complete = True
         db.session.add(synth_info)
         db.session.commit()
-        # TODO: remove only user's file_path
+
+        #TODO: remove temp file
         print(f'Processing of synthInfo {synth_info_id} is completed')
 
 
@@ -166,11 +180,13 @@ def process_song():
         filename = secure_filename(file.filename)
         file.save(os.path.join(temp_dir, filename))
 
+    # Create song in DB
     song = Song(name=file.filename)
     song.user_id = g.user.id
     db.session.add(song)
     db.session.commit()
 
+    # Create synth info for procesing song
     synth_info = SynthInfo(song_id=song.id)
     synth_info.raw_song_id = request.args.get("raw_song_id")
     synth_info.genre = genre
@@ -178,12 +194,20 @@ def process_song():
     db.session.add(synth_info)
     db.session.commit()
 
+    # Bind synth_info_id to song
     song.synth_info_id = synth_info.id
     db.session.commit()
 
-    print("Before delay dir:")
-    print(os.path.abspath('.'))
+    # Upload to temp dir in S3
+    temp_bucket_dir = app.config['S3_TEMP_DIR_NAME']
+    s3_file_path = f'{temp_bucket_dir}/{file.filename}'
+    local_file_path = os.path.join(temp_dir, file.filename)
+    s3_resource.Object(app.config['S3_BUCKET_NAME'], s3_file_path) \
+        .upload_file(Filename=local_file_path)
+
+    # Delay task on celery
     process_midi_file.delay(file.filename, genre, synth_info.id, g.user.id)
+
     return jsonify(song.serialize)
 
 
