@@ -6,6 +6,7 @@ from ml_models.model_processing import proc
 from werkzeug.utils import secure_filename
 import shutil
 import time
+import gc
 
 ALLOWED_SONG_EXTENSIONS = {'mid'}
 
@@ -50,7 +51,7 @@ def process_midi_file(filename, genre, synth_info_id, user_id):
 
         #TODO: remove temp file
         print(f'Processing of synthInfo {synth_info_id} is completed')
-
+        gc.collect()
 
 # ROUTES
 @app.route('/api/users', methods=['POST'])

@@ -3,7 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="688710c2-6a60-47aa-9b64-6a78fc0b81eb" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/app/routes.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -38,8 +37,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/app/routes.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1293">
-              <caret line="205" column="46" lean-forward="true" selection-start-line="205" selection-start-column="46" selection-end-line="205" selection-end-column="46" />
+            <state relative-caret-position="446">
+              <caret line="53" column="19" selection-start-line="53" selection-start-column="19" selection-end-line="53" selection-end-column="19" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
               </folding>
@@ -405,10 +404,11 @@
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="112226000" />
+    <option name="totallyTimeSpent" value="113081000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="23" width="1920" height="1016" extended-state="0" />
+    <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49916527" visible="true" weight="0.2747604" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
@@ -416,7 +416,7 @@
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.033557046" />
       <window_info anchor="bottom" id="Run" order="2" weight="0.28679654" />
-      <window_info active="true" anchor="bottom" id="Debug" order="3" visible="true" weight="0.57900435" />
+      <window_info active="true" anchor="bottom" id="Debug" order="3" visible="true" weight="0.08874459" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
@@ -694,8 +694,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/app/routes.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1293">
-          <caret line="205" column="46" lean-forward="true" selection-start-line="205" selection-start-column="46" selection-end-line="205" selection-end-column="46" />
+        <state relative-caret-position="446">
+          <caret line="53" column="19" selection-start-line="53" selection-start-column="19" selection-end-line="53" selection-end-column="19" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
           </folding>
