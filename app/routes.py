@@ -21,11 +21,11 @@ def allowed_file(filename):
 
 @celery.task()
 def process_midi_file(filename, genre, synth_info_id, user_id):
-    temp_dir = app.config['TEMP_UPLOAD_URL']
-    file_path = f'{temp_dir}/{filename}'
-    print(os.listdir('.'))
-    processed_file = proc(file_path, genre)
     with app.app_context():
+        temp_dir = app.config['TEMP_UPLOAD_URL']
+        file_path = f'{temp_dir}/{filename}'
+        print(os.listdir('.'))
+        processed_file = proc(file_path, genre)
         synth_info = SynthInfo.query.filter_by(id=synth_info_id).first()
         s3_resource.Object(app.config['S3_BUCKET_NAME'], str(user_id) + "/" + filename) \
             .upload_file(Filename=processed_file)
