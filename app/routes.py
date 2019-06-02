@@ -20,13 +20,19 @@ def allowed_file(filename):
 
 
 @celery.task()
-def process_midi_file(filename):
-    time.sleep(10)
-    # s3_resource.Object(app.config['S3_BUCKET_NAME'], str(g.user.id) + "/" + file.filename) \
-    #     .upload_file(Filename=os.path.join(temp_dir, file.filename))
-    # shutil.rmtree(temp_dir)  # TODO: remove only user's file_path
-    print("COMPLETED")
-    # TODO: Update DB row, saving proccessed file in aws service
+def process_midi_file(filename, genre, synth_info_id, user_id):
+    temp_dir = app.config['TEMP_UPLOAD_URL']
+    file_path = f'{temp_dir}/{filename}'
+    processed_file = proc(file_path, genre)
+    with app.app_context():
+        synth_info = SynthInfo.query.filter_by(id=synth_info_id).first()
+        s3_resource.Object(app.config['S3_BUCKET_NAME'], str(user_id) + "/" + filename) \
+            .upload_file(Filename=processed_file)
+        synth_info.processing_complete = True
+        db.session.add(synth_info)
+        db.session.commit()
+        # TODO: remove only user's file_path
+        print(f'Processing of synthInfo {synth_info_id} is completed')
 
 
 # ROUTES
@@ -170,11 +176,9 @@ def process_song():
     db.session.commit()
 
     song.synth_info_id = synth_info.id
-
     db.session.commit()
 
-    process_midi_file.delay(file.filename)
-
+    process_midi_file.delay(file.filename, genre, synth_info.id, g.user.id)
     return jsonify(song.serialize)
 
 
@@ -232,7 +236,7 @@ def get_public_songs():
     """
     if not is_token_valid(request.headers.get("Authorization")):
         return abort(401)
-    songs = Song.query.filter_by(is_public=True, is_processed=False)
+    songs = Song.query.filter_by(is_public=True)
     return jsonify([i.serialize for i in songs.all()])
 
 

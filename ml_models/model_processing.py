@@ -3,12 +3,14 @@ from music21 import converter, instrument, note, chord, stream
 import numpy as np
 import random
 import ngram
+import os
 import glob
 from heapq import nlargest
 import operator
 from tqdm import tqdm
 from music21.ext import joblib
 from sklearn.preprocessing import LabelBinarizer, LabelEncoder
+
 
 def get_msg(file):
     notes = []
@@ -17,12 +19,10 @@ def get_msg(file):
         midi = converter.parse(file)
         notes_to_parse = None
         parts = instrument.partitionByInstrument(midi)
-        if not parts: 
+        if not parts:
             print("NOT PARTS")
             notes_to_parse = midi.flat.notes
-        prev_offset = 0
-        for elem in parts:
-            notes_to_parse = elem.recurse()
+            prev_offset = 0
             for element in notes_to_parse:
                 new_offset = 0.5
                 if prev_offset == element.offset:
@@ -39,15 +39,40 @@ def get_msg(file):
                     if 1.5 < new_offset:
                         new_offset = 2
                 if isinstance(element, note.Note):
-                    notes.append(str(element.pitch) + "|" + str(new_offset) + "|" + str(element.octave) 
-                    + "|" + str(elem[0]) )
+                    notes.append(str(element.pitch) + "|" + str(new_offset) + "|" + str(element.octave))
                     n += 1
                 elif isinstance(element, chord.Chord):
-                    notes.append('.'.join(str(n) for n in element.normalOrder) + "|" + str(new_offset)
-                                 + "|" + str(elem[0]))
+                    notes.append('.'.join(str(n) for n in element.normalOrder) + "|" + str(new_offset))
                     n += 1
+        else:
+            prev_offset = 0
+            for elem in parts:
+                notes_to_parse = elem.recurse()
+                for element in notes_to_parse:
+                    new_offset = 0.5
+                    if prev_offset == element.offset:
+                        new_offset = 0
+                    else:
+                        new_offset = element.offset - prev_offset
+                        if 0 < new_offset <= 0.5:
+                            new_offset = 0.5
+                        if 0.5 < new_offset <= 1:
+                            new_offset = 1
 
-                prev_offset = element.offset
+                        if 1 < new_offset <= 1.5:
+                            new_offset = 1.5
+                        if 1.5 < new_offset:
+                            new_offset = 2
+                    if isinstance(element, note.Note):
+                        notes.append(str(element.pitch) + "|" + str(new_offset) + "|" + str(element.octave)
+                                     + "|" + str(elem[0]))
+                        n += 1
+                    elif isinstance(element, chord.Chord):
+                        notes.append('.'.join(str(n) for n in element.normalOrder) + "|" + str(new_offset)
+                                     + "|" + str(elem[0]))
+                        n += 1
+
+                    prev_offset = element.offset
     except Exception as e:
         print("Что - то не так: ", e)
     return notes
@@ -82,7 +107,7 @@ def create_midi(prediction_output, name):
             else:
                 zero_counter = 0
         except:
-            # print("error", s[1])
+            print("error", s[1])
             continue
 
         inst = ''
@@ -101,7 +126,7 @@ def create_midi(prediction_output, name):
         else:
             inst = "Piano"
         method_to_call = getattr(instrument, inst)()
-        
+
         if ('.' in pattern) or pattern.isdigit():
             notes_in_chord = pattern.split('.')
             notes = []
@@ -117,7 +142,7 @@ def create_midi(prediction_output, name):
                 instruments[inst] = stream.Part()
                 instruments[inst].insert(0, method_to_call)
                 instruments[inst].append(new_chord)
-            
+
         else:
             new_note = note.Note(pattern)
             new_note.offset = offset
@@ -129,7 +154,7 @@ def create_midi(prediction_output, name):
                 instruments[inst] = stream.Part()
                 instruments[inst].insert(0, method_to_call)
                 instruments[inst].append(new_note)
-    
+
     for elem in instruments:
         output_notes.append(instruments[elem])
 
@@ -147,15 +172,15 @@ def extended_this(model, trainX, trainY, look_back):
     """
     # Create dataset in comfortable type
     X = []
-    #Y = []
+    # Y = []
     new_Y = []
     for i in range(len(trainX)):
         X.append(trainX[i])
-    #for i in range(len(trainY)):
+    # for i in range(len(trainY)):
     #    Y.append(trainY[i])
-    #new_l = len(X) * multi
+    # new_l = len(X) * multi
     for i in range(len(trainX)):
-        #if i % 100 == 0:
+        # if i % 100 == 0:
         #    print(i, "/", new_l)
         last_x = np.array([trainX[i]])
         last_y = model.predict_proba(last_x)
@@ -167,7 +192,7 @@ def extended_this(model, trainX, trainY, look_back):
     return new_Y
 
 
-def proc(midi):
+def proc(midi, genre):
     notes = []
     print("Start processing")
     for file in glob.glob(midi):
@@ -205,13 +230,16 @@ def proc(midi):
         top = top[0][0]
         # Загружаем из словаря по индексу ноту
         predicted_label = text_labels[top]
-        #print(predicted_label)
+        # print(predicted_label)
         new_notes.append(predicted_label)
 
-    sequence_length = 100
-    midi_name = midi.split("/")
-    create_midi(new_notes, "proccessedSong.mid")
-    print("Created: " + midi_name[0] + "proc_files/proc_"+midi_name[1])
+    dir_name = os.path.dirname(midi)
+    file_name = os.path.basename(midi)
+    processed_file_path = dir_name + "/processed_" + file_name
+    create_midi(new_notes, processed_file_path)
+    print("Created: " + processed_file_path)
+    return processed_file_path
+
 
 
 
