@@ -196,8 +196,7 @@ def proc(midi, genre):
     notes = []
     print("Start processing script for file path: " + midi)
     print("Current dir: " + os.getcwd())
-    for file in glob.glob(midi):
-        notes.extend(get_msg(file))
+    notes.extend(get_msg(midi))
 
     print("Загрузка ngram, для поиска похожих нот...")
     G = joblib.load("./ml_models/encoders/ngram_classic_main2_5.sav")
