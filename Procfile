@@ -1,2 +1,2 @@
-worker: celery worker --app=app.celery
+worker: celery worker -A app.celery
 web: gunicorn music-synth:app
