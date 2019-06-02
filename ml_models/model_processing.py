@@ -194,7 +194,8 @@ def extended_this(model, trainX, trainY, look_back):
 
 def proc(midi, genre):
     notes = []
-    print("Start processing")
+    print("Start processing script for file path: " + midi)
+    print("Current dir: " + os.getcwd())
     for file in glob.glob(midi):
         notes.extend(get_msg(file))
 
