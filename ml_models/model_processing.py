@@ -5,6 +5,7 @@ import os
 from heapq import nlargest
 import operator
 from tqdm import tqdm
+import glob
 from music21.ext import joblib
 from sklearn.preprocessing import LabelBinarizer
 
@@ -192,7 +193,7 @@ def extended_this(model, trainX, trainY, look_back):
 def proc(midi, genre):
     notes = []
     print("Start processing script for file path: " + midi)
-    print("Current dir: " + os.getcwd())
+    print("Current dir: " + glob.glob("."))
     notes.extend(get_msg(midi))
 
     print("Загрузка ngram, для поиска похожих нот...")
