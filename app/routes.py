@@ -1,6 +1,7 @@
 import os
 from flask import abort, request, jsonify, g, flash, send_file
 from app import app, db, celery, s3_resource
+from celery.signals import task_prerun, task_postrun
 from app.models import User, Song, SongRating, SynthInfo, is_token_valid
 from ml_models.model_processing import proc
 from werkzeug.utils import secure_filename
@@ -20,10 +21,23 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_SONG_EXTENSIONS
 
 
+@task_postrun.connect
+def close_session(*args, **kwargs):
+    with app.app_context():
+        db.session.remove()
+
+
+@task_prerun.connect
+def on_task_init(*args, **kwargs):
+    with app.app_context():
+        db.engine.dispose()
+
+
 @celery.task()
 def process_midi_file(filename, genre, synth_info_id, user_id):
     with app.app_context():
         gc.collect()
+
 
         # Downloading file from S3 temp dir
         temp_dir = app.config['TEMP_UPLOAD_URL']
