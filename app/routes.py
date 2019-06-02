@@ -24,7 +24,7 @@ def process_midi_file(filename, genre, synth_info_id, user_id):
     with app.app_context():
         temp_dir = app.config['TEMP_UPLOAD_URL']
         file_path = f'{temp_dir}/{filename}'
-        print(os.listdir('.'))
+        print("Abs path" + os.path.abspath('.'))
         processed_file = proc(file_path, genre)
         synth_info = SynthInfo.query.filter_by(id=synth_info_id).first()
         s3_resource.Object(app.config['S3_BUCKET_NAME'], str(user_id) + "/" + filename) \
