@@ -193,7 +193,10 @@ def extended_this(model, trainX, trainY, look_back):
 def proc(midi, genre):
     notes = []
     print("Start processing script for file path: " + midi)
-    print("Current dir: " + glob.glob("."))
+    print("Current dir content: ")
+    print(*glob.glob('.'), sep='\n')
+    print("Temp dir:")
+    print(*glob.glob('./temp'), sep='\n')
     notes.extend(get_msg(midi))
 
     print("Загрузка ngram, для поиска похожих нот...")
