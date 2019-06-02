@@ -23,6 +23,8 @@ def allowed_file(filename):
 @celery.task()
 def process_midi_file(filename, genre, synth_info_id, user_id):
     with app.app_context():
+        gc.collect()
+
         # Downloading file from S3 temp dir
         temp_dir = app.config['TEMP_UPLOAD_URL']
         if os.path.isdir(temp_dir) is False:
@@ -51,7 +53,6 @@ def process_midi_file(filename, genre, synth_info_id, user_id):
 
         #TODO: remove temp file
         print(f'Processing of synthInfo {synth_info_id} is completed')
-        gc.collect()
 
 # ROUTES
 @app.route('/api/users', methods=['POST'])
