@@ -23,6 +23,8 @@ def allowed_file(filename):
 def process_midi_file(filename, genre, synth_info_id, user_id):
     temp_dir = app.config['TEMP_UPLOAD_URL']
     file_path = f'{temp_dir}/{filename}'
+    print("Start processing script for file path: " + file_path)
+    print("Current dir: " + os.curdir)
     processed_file = proc(file_path, genre)
     with app.app_context():
         synth_info = SynthInfo.query.filter_by(id=synth_info_id).first()
@@ -254,7 +256,7 @@ def rate_songs(song_id):
     song_rating = SongRating.query.filter_by(song_id=song_id, user_id=g.user.id).first()
 
     if song_rating is None:
-        song_rating = SongRating(song_id=song_id, user_id=g.user.id, rating=request.args.get("score"))
+        song_rating = SongRating(song_id=song_id, user_id=g.user.id, rating=int(request.args.get("score")))
     else:
         song_rating.rating = request.args.get("score")
 
