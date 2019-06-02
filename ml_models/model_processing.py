@@ -1,15 +1,12 @@
 from keras.models import load_model
 from music21 import converter, instrument, note, chord, stream
 import numpy as np
-import random
-import ngram
 import os
-import glob
 from heapq import nlargest
 import operator
 from tqdm import tqdm
 from music21.ext import joblib
-from sklearn.preprocessing import LabelBinarizer, LabelEncoder
+from sklearn.preprocessing import LabelBinarizer
 
 
 def get_msg(file):
@@ -200,6 +197,7 @@ def proc(midi, genre):
 
     print("Загрузка ngram, для поиска похожих нот...")
     G = joblib.load("./ml_models/encoders/ngram_classic_main2_5.sav")
+    print("G OBJECT: " + G)
     for i in range(len(notes)):
         print(notes[i], G.find(notes[i]))
         notes[i] = G.find(notes[i])
